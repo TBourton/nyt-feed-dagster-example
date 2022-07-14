@@ -1,0 +1,9 @@
+ops:
+  all_csv:
+    config: /tmp/all_csv.csv
+  nyc_csv:
+    config: /tmp/nyc_csv.csv
+resources:
+  slack:
+    config:
+      token: ''

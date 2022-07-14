@@ -1,0 +1,4 @@
+numpy==1.23.1
+pandas==1.4.3
+dagit==0.15.5
+dagster==0.15.5
