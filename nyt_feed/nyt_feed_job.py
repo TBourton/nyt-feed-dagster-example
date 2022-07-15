@@ -1,22 +1,15 @@
+from __future__ import annotations
+
 import csv
 import os
 import xml.etree.ElementTree as ET
+from collections import defaultdict
 from unittest.mock import MagicMock
 
 import pandas as pd
 import requests
-
-from dagster import (
-    IOManager,
-    InputContext,
-    Out,
-    Output,
-    OutputContext,
-    io_manager,
-    job,
-    op,
-    resource,
-)
+from dagster import (InputContext, IOManager, Out, Output, OutputContext,
+                     io_manager, job, op, resource)
 
 ARTICLES_LINK = "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml"
 
@@ -96,9 +89,42 @@ def send_slack_msg(context, articles):
     context.resources.slack.chat_postMessage(channel="my-news-channel", text=formatted_str)
 
 
+@op
+def count_title_words(articles):
+    word_counts = defaultdict(int)
+    words = [w for a in articles for w in a['Title'].split(' ')]
+    for w in words:
+        word_counts[w] += 1
+
+    return dict(word_counts)
+
+
+@op(config_schema=str)
+def write_word_counts_to_csv(context, word_counts):
+    with open(context.op_config, "w", encoding="utf8") as csvfile:
+        csv_headers = ["Word", "Count"]
+        writer = csv.DictWriter(csvfile, fieldnames=csv_headers)
+        writer.writeheader()
+
+        rows = [{"Word": w, "Count": c} for w, c in word_counts.items()]
+        writer.writerows(rows)
+
+
 @job(resource_defs={"slack": mock_slack_resource})
 def process_nyt_feed():
     all_articles, nyc_articles = fetch_stories()
-    write_to_csv.alias("nyc_csv")(parse_xml(nyc_articles))
-    write_to_csv.alias("all_csv")(parse_xml(all_articles))
-    send_slack_msg(parse_xml(nyc_articles))
+
+    all_articles = parse_xml(all_articles)
+    nyc_articles = parse_xml(nyc_articles)
+
+    write_to_csv.alias("nyc_csv")(nyc_articles)
+    write_to_csv.alias("all_csv")(all_articles)
+
+    write_word_counts_to_csv.alias("nyc_word_counts_csv")(
+        count_title_words(nyc_articles)
+    )
+    write_word_counts_to_csv.alias("all_word_counts_csv")(
+        count_title_words(all_articles)
+    )
+
+    send_slack_msg(nyc_articles)

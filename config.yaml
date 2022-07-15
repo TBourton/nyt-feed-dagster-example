@@ -3,6 +3,10 @@ ops:
     config: /tmp/all_csv.csv
   nyc_csv:
     config: /tmp/nyc_csv.csv
+  all_word_counts_csv:
+    config: /tmp/all_word_counts.csv
+  nyc_word_counts_csv:
+    config: /tmp/nyc_word_counts.csv
 resources:
   slack:
     config:
